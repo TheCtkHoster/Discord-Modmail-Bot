@@ -1,261 +1,222 @@
-const discord = require("discord.js");
-const client = new discord.Client()
-const { token, prefix, ServerID } = require("./config.json")
+const { Client, MessageEmbed } = require('discord.js');
 
-client.on("ready", () => {
-console.log("I am ready to receive and Send Mails :D")
+const intents =  [
+    "DIRECT_MESSAGES", 
+    "GUILDS", 
+    "GUILD_MEMBERS", 
+    "GUILD_MESSAGES"
+];
 
-
-client.user.setActivity("Watching My Dm's :D")
-})
-
-client.on("channelDelete", (channel) => {
-    if(channel.parentID == channel.guild.channels.cache.find((x) => x.name == "MODMAIL").id) {
-        const person = channel.guild.members.cache.find((x) => x.id == channel.name)
-
-        if(!person) return;
-
-        let yembed = new discord.MessageEmbed()
-        .setAuthor("MAIL DELETED", client.user.displayAvatarURL())
-        .setColor('RED')
-        .setThumbnail(client.user.displayAvatarURL())
-        .setDescription("Your mail is deleted by moderator and if you have any problem with that han you can open mail again by sending message here.")
-    return person.send(yembed)
-    
+const client = new Client({
+    ws: {
+        intents
     }
+}).login(process.env.TOKEN);
 
-
+require('dotenv').config({
+    path: './.env'
 })
 
+let prefix = process.env.PREFIX
 
-client.on("message", async message => {
-  if(message.author.bot) return;
+client.on('ready', async () => {
+    await client.user.setPresence({ 
+        activity: {
+            name: `DM\'s for `,
+            type: 'WATCHING'
+        },
+        status: 'online',
+    });
 
-  let args = message.content.slice(prefix.length).split(' ');
-  let command = args.shift().toLowerCase();
+    console.log(`${client.user.tag} is ready to work.`);
+});
 
+client.on('channelDelete', channel => {
+    if(channel.parentID == channel.guild.channels.cache.find(c => c.name == 'MODMAIL').id){
+        const member = channel.guild.members.cache.find(m => m.id == channel.name);
+        if(!member) return;
 
-  if(message.guild) {
-      if(command == "setup") {
-          if(!message.member.hasPermission("ADMINISTRATOR")) {
-              return message.channel.send("You need Admin Permissions to setup the modmail system!")
-          }
-
-          let role = message.guild.roles.cache.find((x) => x.name == "SUPPORTER")
-          let everyone = message.guild.roles.cache.find((x) => x.name == "@everyone")
-
-          if(!role) {
-              role = await message.guild.roles.create({
-                  data: {
-                      name: "SUPPORTER",
-                      color: "GREEN"
-                  },
-                  reason: "Role needed for ModMail System"
-              })
-          }
-
-          await message.guild.channels.create("MODMAIL", {
-              type: "category",
-              topic: "All the mail will be here :D",
-              permissionOverwrites: [
-                  {
-                      id: role.id,
-                      allow: ["VIEW_CHANNEL", "SEND_MESSAGES", "READ_MESSAGE_HISTORY"]
-                  }, 
-                  {
-                      id: everyone.id,
-                      deny: ["VIEW_CHANNEL", "SEND_MESSAGES", "READ_MESSAGE_HISTORY"]
-                  }
-              ]
-          })
-
-
-          return message.channel.send("Setup is Completed :D")
-
-      } else if(command == "close") {
-
-
-        if(message.channel.parentID == message.guild.channels.cache.find((x) => x.name == "MODMAIL").id) {
-            
-            const person = message.guild.members.cache.get(message.channel.name)
-
-            if(!person) {
-                return message.channel.send("I am Unable to close the channel and this error is coming because probaly channel name is changed.")
-            }
-
-            await message.channel.delete()
-
-            let yembed = new discord.MessageEmbed()
-            .setAuthor("MAIL CLOSED", client.user.displayAvatarURL())
-            .setColor("RED")
+        const delEmbed = new MessageEmbed()
+            .setTitle('Your mail has been closed')
+            .setColor('RED')
+            .setTimestamp()
             .setThumbnail(client.user.displayAvatarURL())
-            .setFooter("Mail is closed by " + message.author.username)
-            if(args[0]) yembed.setDescription(args.join(" "))
+            .setDescription('YOur mail was deleted by the server staff and if you have any problem with it you can open the mail again.')
+        return member.send(delEmbed)
+    } else return;
+});
 
-            return person.send(yembed)
+client.on('message', message => {
+    if(message.author.bot || message.webhookID) return;
+    if(!message.content.startsWith(process.env.PREFIX)) return;
 
-        }
-      } else if(command == "open") {
-          const category = message.guild.channels.cache.find((x) => x.name == "MODMAIL")
+    const args = message.content.slice(process.env.PREFIX).trim().split(/ +/g);
+    const cmd = args.shift().toLowerCase();
 
-          if(!category) {
-              return message.channel.send("Moderation system is not setuped in this server, use " + prefix + "setup")
-          }
+    if(cmd.length === 0) return;
 
-          if(!message.member.roles.cache.find((x) => x.name == "SUPPORTER")) {
-              return message.channel.send("You need supporter role to use this command")
-          }
+    if(message.guild){
+        if(command == 'setup'){
+            if(!message.member.hasPermission('ADMINISTRATOR')) return message.reply('You need Adminstrator perms to setup the mod mail');
+            
+            let role = message.guild.roles.cache.find(r => r.name == "SUPPORTER");
+            let everyone = message.guild.roles.cache.find(r => r.name == "@everyone");
 
-          if(isNaN(args[0]) || !args.length) {
-              return message.channel.send("Please Give the ID of the person")
-          }
+            if(!role){
+                role = await message.guild.roles.create({
+                    data: {
+                        name: "",
+                        color: ""
+                    },
+                    reason: ''
+                });
+            };
 
-          const target = message.guild.members.cache.find((x) => x.id === args[0])
+            await message.guild.channels.create('MODMAIL', {
+                type: 'category',
+                topic: 'All the mails to the mod mail will show here.',
+                permissionOverwrites: [{
+                        id: role.id,
+                        allow: ["VIEW_CHANNEL", "SEND_MESSAGES", "READ_MESSAGE_HISTORY"]
+                    },
+                    {
+                        id: everyone.id,
+                        deny: ["VIEW_CHANNEL", "SEND_MESSAGES", "READ_MESSAGE_HISTORY"]
+                    }
+                ],
+            });
 
-          if(!target) {
-              return message.channel.send("Unable to find this person.")
-          }
+            return message.channel.send(new MessageEmbed()
+                .setDescription('ModMail setup has been completed')
+                .setTimestamp()
+                .setColor("GREEN")    
+            );
+        } else if(command == 'close'){
+            if(message.channel.parentID == message.guild.channels.cache.find(c => c.name == 'MODMAIL').id){
+                const mailMember = message.guild.members.cache.get(message.channel.name);
 
+                if(!mailMember) return message.reply('The mail was not closed, it must because of channel name changing or not existing')
+                
+                await message.channel.delete()
 
-          const channel = await message.guild.channels.create(target.id, {
-              type: "text",
-            parent: category.id,
-            topic: "Mail is Direct Opened by **" + message.author.username + "** to make contact with " + message.author.tag
-          })
+                let delChxEmbed = new MessageEmbed()
+                    .setTitle('You mail has been closed')
+                    .setFooter('The mail was closed by' + message.author.tag)
+                    .setColor('RED')
+                    .setTimestamp()
+                if(args[0]) delChxEmbed.setDescription(args.join(' '));
 
-          let nembed = new discord.MessageEmbed()
-          .setAuthor("DETAILS", target.user.displayAvatarURL({dynamic: true}))
-          .setColor("BLUE")
-          .setThumbnail(target.user.displayAvatarURL({dynamic: true}))
-          .setDescription(message.content)
-          .addField("Name", target.user.username)
-          .addField("Account Creation Date", target.user.createdAt)
-          .addField("Direct Contact", "Yes(it means this mail is opened by a supporter)");
+                return mailMember.send(delChxEmbed);
+            };
+        } else if(command == 'open'){
+            const category = message.guild.channels.cache.find(c => c.name == 'MODMAIL');
 
-          channel.send(nembed)
+            if(!category) return message.reply('Modmail is not setted up.\n Use the setup command.')
 
-          let uembed = new discord.MessageEmbed()
-          .setAuthor("DIRECT MAIL OPENED")
-          .setColor("GREEN")
-          .setThumbnail(client.user.displayAvatarURL())
-          .setDescription("You have been contacted by Supporter of **" + message.guild.name + "**, Please wait until he send another message to you!");
-          
-          
-          target.send(uembed);
+            if(!message.member.roles.cache.find(r => r.name == 'SUPPORTER')) return;
+            
+            if(isNaN(args[0]) || !args.length) return message.reply('Please give ID of the person');
+            
+            const target = message.guild.members.cache.find(m => m.id === args[0]);
 
-          let newEmbed = new discord.MessageEmbed()
-          .setDescription("Opened The Mail: <#" + channel + ">")
-          .setColor("GREEN");
+            if(!target) return message.channel.send('I was not able to find the user with the given ID.');
 
-          return message.channel.send(newEmbed);
-      } else if(command == "help") {
-          let embed = new discord.MessageEmbed()
-          .setAuthor('MODMAIL BOT', client.user.displayAvatarURL())
-          .setColor("GREEN")
-          
-        .setDescription("This bot is made by CTK WARRIOR, You can remove credits :D")
-        .addField(prefix + "setup", "Setup the modmail system(This is not for multiple server.)", true)
-  
-        .addField(prefix + "open", 'Let you open the mail to contact anyone with his ID', true)
-        .setThumbnail(client.user.displayAvatarURL())
-                    .addField(prefix + "close", "Close the mail in which you use this command.", true);
+            const createMemberMailChx = await message.guild.channels.create(target.id, {
+                type: 'text',
+                parent: category.id,
+                topic: `This mail is directly opened by ${message.author.tag} to contact ${target.tag}`
+            });
 
-                    return message.channel.send(embed)
-          
-      }
-  } 
-  
-  
-  
-  
-  
-  
-  
-  if(message.channel.parentID) {
+            let nembed = new MessageEmbed()
+                .setAuthor("DETAILS", target.user.displayAvatarURL({
+                    dynamic: true
+                }))
+                .setColor("BLUE")
+                .setThumbnail(target.user.displayAvatarURL({
+                    dynamic: true
+                }))
+                .setDescription(message.content)
+                .addField("Name", target.user.username)
+                .addField("Account Creation Date", target.user.createdAt)
+                .addField("Direct Contact", "Yes(it means this mail is opened by a supporter)");
 
-    const category = message.guild.channels.cache.find((x) => x.name == "MODMAIL")
-    
-    if(message.channel.parentID == category.id) {
-        let member = message.guild.members.cache.get(message.channel.name)
-    
-        if(!member) return message.channel.send('Unable To Send Message')
-    
-        let lembed = new discord.MessageEmbed()
-        .setColor("GREEN")
-        .setFooter(message.author.username, message.author.displayAvatarURL({dynamic: true}))
-        .setDescription(message.content)
-    
-        return member.send(lembed)
+            createMemberMailChx.send(nembed);
+
+        } else if(command == "help") {
+            let helpEmbed = new MessageEmbed()
+                .setAuthor('MODMAIL BOT', client.user.displayAvatarURL())
+                .setColor("GREEN")
+
+                .setDescription("This bot is made by CTK WARRIOR, You can remove credits :D")
+                .addField(prefix + "setup", "Setup the modmail system(This is not for multiple server.)", true)
+
+                .addField(prefix + "open", 'Let you open the mail to contact anyone with his ID', true)
+                .setThumbnail(client.user.displayAvatarURL())
+                .addField(prefix + "close", "Close the mail in which you use this command.", true);
+
+            return message.channel.send(helpEmbed)
+        };
     }
-    
-    
-      } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  if(!message.guild) {
-      const guild = await client.guilds.cache.get(ServerID);
-      if(!guild) return;
 
-      const main = guild.channels.cache.find((x) => x.name == message.author.id)
-      const category = guild.channels.cache.find((x) => x.name == "MODMAIL")
+    if (message.channel.parentID) {
 
+        const category = message.guild.channels.cache.find((x) => x.name == "MODMAIL")
+        if (message.channel.parentID == category.id) {
+            let member = message.guild.members.cache.get(message.channel.name)
+            if (!member) return message.channel.send('Unable To Send Message')
+            let lembed = new MessageEmbed()
+                .setColor("GREEN")
+                .setFooter(message.author.username, message.author.displayAvatarURL({
+                    dynamic: true
+                }))
+                .setDescription(message.content)
 
-      if(!main) {
-          let mx = await guild.channels.create(message.author.id, {
-              type: "text",
-              parent: category.id,
-              topic: "This mail is created for helping  **" + message.author.tag + " **"
-          })
+            return member.send(lembed)
+        }
+    }
+    if (!message.guild) {
+        const guild = await client.guilds.cache.get(process.env.SERVERID);
+        if (!guild) return;
 
-          let sembed = new discord.MessageEmbed()
-          .setAuthor("MAIN OPENED")
-          .setColor("GREEN")
-          .setThumbnail(client.user.displayAvatarURL())
-          .setDescription("Conversation is now started, you will be contacted by supporters soon :D")
+        const main = guild.channels.cache.find((x) => x.name == message.author.id)
+        const category = guild.channels.cache.find((x) => x.name == "MODMAIL")
 
-          message.author.send(sembed)
+        if (!main) {
+            let mx = await guild.channels.create(message.author.id, {
+                type: "text",
+                parent: category.id,
+                topic: "This mail is created for helping  **" + message.author.tag + " **"
+            })
 
+            let sembed = new MessageEmbed()
+                .setAuthor("MAIN OPENED")
+                .setColor("GREEN")
+                .setThumbnail(client.user.displayAvatarURL())
+                .setDescription("Conversation is now started, you will be contacted by supporters soon :D")
 
-          let eembed = new discord.MessageEmbed()
-          .setAuthor("DETAILS", message.author.displayAvatarURL({dynamic: true}))
-          .setColor("BLUE")
-          .setThumbnail(message.author.displayAvatarURL({dynamic: true}))
-          .setDescription(message.content)
-          .addField("Name", message.author.username)
-          .addField("Account Creation Date", message.author.createdAt)
-          .addField("Direct Contact", "No(it means this mail is opened by person not a supporter)")
+            message.author.send(sembed)
 
+            let eembed = new MessageEmbed()
+                .setAuthor("DETAILS", message.author.displayAvatarURL({
+                    dynamic: true
+                }))
+                .setColor("BLUE")
+                .setThumbnail(message.author.displayAvatarURL({
+                    dynamic: true
+                }))
+                .setDescription(message.content)
+                .addField("Name", message.author.username)
+                .addField("Account Creation Date", message.author.createdAt)
+                .addField("Direct Contact", "No(it means this mail is opened by person not a supporter)")
+            return mx.send(eembed)
+        }
 
-        return mx.send(eembed)
-      }
-
-      let xembed = new discord.MessageEmbed()
-      .setColor("YELLOW")
-      .setFooter(message.author.tag, message.author.displayAvatarURL({dynamic: true}))
-      .setDescription(message.content)
-
-
-      main.send(xembed)
-
-  } 
-  
-  
-  
- 
-})
-
-
-client.login(token)
+        let xembed = new MessageEmbed()
+            .setColor("YELLOW")
+            .setFooter(message.author.tag, message.author.displayAvatarURL({
+                dynamic: true
+            }))
+            .setDescription(message.content)
+        main.send(xembed)
+    }
+});
