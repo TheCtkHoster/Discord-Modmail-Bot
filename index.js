@@ -9,13 +9,11 @@ const intents =  [
 
 const client = new Client({
     ws: {
-        intents
+        intents: intents
     }
 });
 
-require('dotenv').config({
-    path: './.env'
-})
+require('dotenv')
 
 client.login(process.env.TOKEN)
 let prefix = process.env.PREFIX
@@ -42,22 +40,22 @@ client.on('channelDelete', async channel => {
             .setColor('RED')
             .setTimestamp()
             .setThumbnail(client.user.displayAvatarURL())
-            .setDescription('YOur mail was deleted by the server staff and if you have any problem with it you can open the mail again.')
+            .setDescription('Your mail was deleted by the server staff and if you have any problem with it you can open the mail again.')
         return member.send(delEmbed)
     } else return;
 });
 
 client.on('message', async message => {
     if(message.author.bot || message.webhookID) return;
-    if(!message.content.startsWith(process.env.PREFIX)) return;
 
-    const args = message.content.slice(process.env.PREFIX).trim().split(/ +/g);
-    const cmd = args.shift().toLowerCase();
+
+    let args = message.content.slice(prefix.length).split(' ');
+    let cmd = args.shift().toLowerCase();
 
     if(cmd.length === 0) return;
 
     if(message.guild){
-        if(command == 'setup'){
+        if(cmd == 'setup'){
             if(!message.member.hasPermission('ADMINISTRATOR')) return message.reply('You need Adminstrator perms to setup the mod mail');
             
             let role = message.guild.roles.cache.find(r => r.name == "SUPPORTER");
@@ -66,10 +64,10 @@ client.on('message', async message => {
             if(!role){
                 role = await message.guild.roles.create({
                     data: {
-                        name: "",
-                        color: ""
+                        name: "supporter",
+                        color: "GREEN"
                     },
-                    reason: ''
+                    reason: 'supporter'
                 });
             };
 
@@ -92,7 +90,9 @@ client.on('message', async message => {
                 .setTimestamp()
                 .setColor("GREEN")    
             );
-        } else if(command == 'close'){
+        };
+
+        if(cmd == 'close'){
             if(message.channel.parentID == message.guild.channels.cache.find(c => c.name == 'MODMAIL').id){
                 const mailMember = message.guild.members.cache.get(message.channel.name);
 
@@ -109,12 +109,14 @@ client.on('message', async message => {
 
                 return mailMember.send(delChxEmbed);
             };
-        } else if(command == 'open'){
+        } 
+        
+        if(cmd == 'open'){
             const category = message.guild.channels.cache.find(c => c.name == 'MODMAIL');
 
-            if(!category) return message.reply('Modmail is not setted up.\n Use the setup command.')
+            if(!category) return message.reply('Modmail is not setted up.\n Use the setup cmd.')
 
-            if(!message.member.roles.cache.find(r => r.name == 'SUPPORTER')) return;
+            if(!message.member.roles.cache.find(r => r.name == 'supporter')) return message.reply('You are not a supporter you cant open a mail')
             
             if(isNaN(args[0]) || !args.length) return message.reply('Please give ID of the person');
             
@@ -136,14 +138,16 @@ client.on('message', async message => {
                 .setThumbnail(target.user.displayAvatarURL({
                     dynamic: true
                 }))
-                .setDescription(message.content)
                 .addField("Name", target.user.username)
                 .addField("Account Creation Date", target.user.createdAt)
-                .addField("Direct Contact", "Yes(it means this mail is opened by a supporter)");
+                .addField("Direct Contact", "Yes(it means this mail is opened by a supporter)")
+                .setFooter('Opened by' + message.author.tag)
 
             createMemberMailChx.send(nembed);
 
-        } else if(command == "help") {
+        } 
+        
+        if(cmd == "help") {
             let helpEmbed = new MessageEmbed()
                 .setAuthor('MODMAIL BOT', client.user.displayAvatarURL())
                 .setColor("GREEN")
@@ -153,7 +157,7 @@ client.on('message', async message => {
 
                 .addField(prefix + "open", 'Let you open the mail to contact anyone with his ID', true)
                 .setThumbnail(client.user.displayAvatarURL())
-                .addField(prefix + "close", "Close the mail in which you use this command.", true);
+                .addField(prefix + "close", "Close the mail in which you use this cmd.", true);
 
             return message.channel.send(helpEmbed)
         };
@@ -170,7 +174,7 @@ client.on('message', async message => {
                 .setFooter(message.author.username, message.author.displayAvatarURL({
                     dynamic: true
                 }))
-                .setDescription(message.content)
+                .setTitle(message.content)
 
             return member.send(lembed)
         }
@@ -217,7 +221,7 @@ client.on('message', async message => {
             .setFooter(message.author.tag, message.author.displayAvatarURL({
                 dynamic: true
             }))
-            .setDescription(message.content)
+            .setTitle(message.content)
         main.send(xembed)
     }
 });
