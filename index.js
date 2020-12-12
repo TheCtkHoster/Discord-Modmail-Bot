@@ -11,12 +11,13 @@ const client = new Client({
     ws: {
         intents
     }
-}).login(process.env.TOKEN);
+});
 
 require('dotenv').config({
     path: './.env'
 })
 
+client.login(process.env.TOKEN)
 let prefix = process.env.PREFIX
 
 client.on('ready', async () => {
@@ -31,7 +32,7 @@ client.on('ready', async () => {
     console.log(`${client.user.tag} is ready to work.`);
 });
 
-client.on('channelDelete', channel => {
+client.on('channelDelete', async channel => {
     if(channel.parentID == channel.guild.channels.cache.find(c => c.name == 'MODMAIL').id){
         const member = channel.guild.members.cache.find(m => m.id == channel.name);
         if(!member) return;
@@ -46,7 +47,7 @@ client.on('channelDelete', channel => {
     } else return;
 });
 
-client.on('message', message => {
+client.on('message', async message => {
     if(message.author.bot || message.webhookID) return;
     if(!message.content.startsWith(process.env.PREFIX)) return;
 
