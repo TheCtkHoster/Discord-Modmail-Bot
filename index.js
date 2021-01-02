@@ -116,7 +116,7 @@ client.on('message', async message => {
 
             if(!category) return message.reply('Modmail is not setted up.\n Use the setup cmd.')
 
-            if(!message.member.roles.cache.find(r => r.name == 'supporter')) return message.reply('You are not a supporter you cant open a mail')
+            if(!message.member.roles.cache.find(r => r.name == 'supporter') || !message.member.hasPermission("ADMINISTRATOR")) return message.reply('You are not a supporter you cant open a mail')
             
             if(isNaN(args[0]) || !args.length) return message.reply('Please give ID of the person');
             
